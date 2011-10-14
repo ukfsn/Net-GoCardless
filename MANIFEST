@@ -1,0 +1,6 @@
+Changes
+Makefile.PL
+MANIFEST
+README
+t/Net-GoCardless.t
+lib/Net/GoCardless.pm
