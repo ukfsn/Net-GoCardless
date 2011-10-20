@@ -15,9 +15,12 @@ __PACKAGE__->mk_accessors(qw/client_id/);
 
 
 
-# Preloaded methods go here.
-
-# Autoload methods go after =cut, and are processed by the autosplit program.
+sub sign {
+    my $data = shift;
+    my $sha = Digest::SHA->new(sha256_hex);
+    $sha->add($data);
+    return $sha->sha256_hex;
+}
 
 1;
 __END__
@@ -73,3 +76,4 @@ at your option, any later version of Perl 5 you may have available.
 
 
 =cut
+
