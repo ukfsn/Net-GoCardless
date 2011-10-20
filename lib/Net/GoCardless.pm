@@ -8,18 +8,58 @@ use 5.010001;
 use LWP::UserAgent;
 use Carp qw/croak/;
 use Time::Piece;
-use Digest::SHA;
+use Digest::SHA qw/hmac_sha256_base64/;
+use JSON;
 
 use base 'Class::Accessor';
-__PACKAGE__->mk_accessors(qw/client_id/);
+__PACKAGE__->mk_accessors(qw/client_id access_token secret testing timeout/);
 
 
+sub _go {
+    my ($self, $method, $data) = @_;
+
+    my $ua = LWP::UserAgent->new();
+    $ua->timeout(($self->timeout ? $self->timeout : 15));
+
+    my @headers = (
+        'User-Agent'    => "Net::GoCardless Perl Module/$VERSION",
+        'bearer'        => $self->access_token,
+        'accept'        => 'JSON'
+    );
+    
+    my $uri = 'https://' . ($self->testing ? 'sandbox.gocardless.com' : 'gocardless.com') . '/';
+
+    $data->{client_id} = $self->client_id;
+    $data->{timestamp} = Time::Piece->new()->datetime;
+    $data->{nonce} = hmac_sha256_base64($$ . $data->{timestamp}, "Net::GoCardless Perl Module");
+
+    my $res = undef;
+    if ( $method =~ /new_(.*)/ ) {
+        $uri .= "connect/$1s/new";
+        $data->{signature} = $self->sign($data);
+        $res = $ua->post($uri, $data, @headers);
+    }
+    elsif ( $method eq 'bill' ) {
+        $uri .= "api/v1/$method"."s/";
+        if ( $data->{id} ) {
+            $res = $ua->get($uri . $data->{id});
+        }
+        else {
+            $data->{signature} = $self->sign($data);
+            $res = $ua->post($uri, $data, @headers);
+        }
+    }
+    return unless $res->is_success;
+    return $res->decoded_content;
+}
 
 sub sign {
-    my $data = shift;
-    my $sha = Digest::SHA->new(sha256_hex);
-    $sha->add($data);
-    return $sha->sha256_hex;
+    my ($self,$data) = @_;
+    my $string = undef;
+    for (sort keys %$data) {
+        $string .= $_ . '=' . $data->{$_};
+    }
+    return hmac_sha256_base64($string, $self->secret);
 }
 
 1;
@@ -58,6 +98,7 @@ This module depends upon the following perl modules:
     Digest::SHA
     LWP::UserAgent
     Time::Piece
+    JSON
 
 A public git repository for this module is available at 
 https://github.com/ukfsn/Net-GoCardless
