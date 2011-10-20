@@ -5,8 +5,14 @@
 
 # change 'tests => 1' to 'tests => last_test_to_print';
 
-use Test::More tests => 1;
+use Test::More tests => 2;
 BEGIN { use_ok('Net::GoCardless') };
+
+ok(my $go = Net::GoCardless->new({
+    'client_id' => '123',
+    'access_token' => 'asdjkasdlkj1234123'
+    }), "new accepts input");
+
 
 #########################
 
