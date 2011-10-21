@@ -5,14 +5,22 @@
 
 # change 'tests => 1' to 'tests => last_test_to_print';
 
-use Test::More tests => 2;
+use Test::More tests => 3;
 BEGIN { use_ok('Net::GoCardless') };
 
 ok(my $go = Net::GoCardless->new({
     'client_id' => '123',
-    'access_token' => 'asdjkasdlkj1234123'
+    'access_token' => 'asdjkasdlkj1234123',
+    'secret'    => 'Net::GoCardless'
     }), "new accepts input");
 
+ok($go->sign({
+    state => 'testing',
+    merchant_id => 'brjkDt/BS81+ubzAOhSIfp8OY7JhkwEQCeeInbdaUammOXUCJ80bYVpm9w53GReo',
+    amount  => '19.99',
+    interval_length => 1,
+    interval_unit => 'month',
+    }) eq "ELDXHDMPACfXhVsPk+UXzU7s8Ql73fx7rq3UvhDts4c", "sign works");
 
 #########################
 
