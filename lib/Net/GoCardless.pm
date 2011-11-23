@@ -6,14 +6,16 @@ our $VERSION = '0.01';
 use 5.010001;
 
 use LWP::UserAgent;
+use HTTP::Request;
+use HTTP::Headers;
 use Carp qw/croak/;
 use Time::Piece;
 use Digest::SHA qw/hmac_sha256_base64/;
 use JSON;
+use Data::Dumper;
 
 use base 'Class::Accessor';
 __PACKAGE__->mk_accessors(qw/client_id access_token secret testing timeout/);
-
 
 sub _go {
     my ($self, $method, $data) = @_;
@@ -21,36 +23,35 @@ sub _go {
     my $ua = LWP::UserAgent->new();
     $ua->timeout(($self->timeout ? $self->timeout : 15));
 
-    my @headers = (
-        'User-Agent'    => "Net::GoCardless Perl Module/$VERSION",
-        'bearer'        => $self->access_token,
-        'accept'        => 'JSON'
-    );
+    my $h = HTTP::Headers->new();
+    $h->header('User-Agent' => "Net::GoCardless Perl Module/$VERSION");
+    $h->header('Authorization' => "bearer ".$self->access_token);
+    $h->header('accept' => 'JSON');
     
     my $uri = 'https://' . ($self->testing ? 'sandbox.gocardless.com' : 'gocardless.com') . '/';
+    $uri .= $method;
+
+    my $req = HTTP::Request->new('POST', $uri, $h, $data);
+
+    my $res = $ua->request($req);
+    warn Dumper $res if $self->testing;
+
+    croak $res->status_line unless $res->is_success;
+    return $res->decoded_content;
+}
+
+sub _connect {
+    # Handles new subscription, pre-authorisation and bill setups
+    my ($self, $method, $data) = @_;
 
     $data->{client_id} = $self->client_id;
     $data->{timestamp} = Time::Piece->new()->datetime;
     $data->{nonce} = hmac_sha256_base64($$ . $data->{timestamp}, "Net::GoCardless Perl Module");
 
-    my $res = undef;
-    if ( $method =~ /new_(.*)/ ) {
-        $uri .= "connect/$1s/new";
-        $data->{signature} = $self->sign($data);
-        $res = $ua->post($uri, $data, @headers);
-    }
-    elsif ( $method eq 'bill' ) {
-        $uri .= "api/v1/$method"."s/";
-        if ( $data->{id} ) {
-            $res = $ua->get($uri . $data->{id});
-        }
-        else {
-            $data->{signature} = $self->sign($data);
-            $res = $ua->post($uri, $data, @headers);
-        }
-    }
-    return unless $res->is_success;
-    return $res->decoded_content;
+    $method = 'connect/'.$method.'s/new';
+    $data->{signature} = $self->sign($data);
+
+    return $self->_go($method, $data);
 }
 
 sub sign {
@@ -60,6 +61,33 @@ sub sign {
         $string .= $_ . '=' . $data->{$_};
     }
     return hmac_sha256_base64($string, $self->secret);
+}
+
+sub _api {
+    # Handles API calls for existing subscriptions, pre-auths and bills
+    my ($self, $method, $data) = @_;
+
+    $method = 'api/v1/'.$method.'s/'.$data->{id};
+    
+    return $self->_go($method, to_json($data));
+}
+
+sub new_subscription {
+    my ($self, $data) = @_;
+    for (qw/merchant_id amount interval_length interval_unit/) {
+        croak "You must supply the $_ parameter" unless $data->{$_};
+    }
+
+    return $self->_connect("subscription", $data);
+}
+
+sub merchant {
+    my ($self, $data) = @_;
+    for (qw/id/) {
+        croak "You must supply the $_ parameter" unless $data->{$_};
+    }
+
+    return $self->_api("merchant", $data);
 }
 
 1;
