@@ -68,6 +68,7 @@ sub _api {
     my ($self, $method, $data) = @_;
 
     $method = 'api/v1/'.$method.'s/'.$data->{id};
+    $method .= '/'.$data->{subcommand} if $data->{subcommand};
     
     return $self->_go($method, to_json($data));
 }
@@ -83,11 +84,23 @@ sub new_subscription {
 
 sub merchant {
     my ($self, $data) = @_;
-    for (qw/id/) {
-        croak "You must supply the $_ parameter" unless $data->{$_};
-    }
-
     return $self->_api("merchant", $data);
+}
+
+sub merchant_users {
+    my ($self, $data) = @_;
+    $data->{subcommand} = 'users';
+    $self->merchant($data);
+}
+
+sub get_bill {
+    my ($self, $data) = @_;
+    return $self->_api("bill", $data);
+}
+
+sub payment {
+    my ($self, $data) = @_;
+    return $self->_api("payment", $data);
 }
 
 1;
