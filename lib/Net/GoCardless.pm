@@ -51,7 +51,7 @@ sub _connect {
     $method = 'connect/'.$method.'s/new';
     $data->{signature} = $self->sign($data);
 
-    return $self->_go($method, $data);
+    return $self->_go($method, to_json($data));
 }
 
 sub sign {
