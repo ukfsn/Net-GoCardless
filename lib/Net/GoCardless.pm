@@ -26,7 +26,7 @@ sub _go {
     my $h = HTTP::Headers->new();
     $h->header('User-Agent' => "Net::GoCardless Perl Module/$VERSION");
     $h->header('Authorization' => "bearer ".$self->access_token);
-    $h->header('accept' => 'JSON');
+    $h->header('accept' => 'application/json');
     
     my $uri = 'https://' . ($self->testing ? 'sandbox.gocardless.com' : 'gocardless.com') . '/';
     $uri .= $method;
