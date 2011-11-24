@@ -29,9 +29,9 @@ sub _go {
     $h->header('accept' => 'application/json');
     
     my $uri = 'https://' . ($self->testing ? 'sandbox.gocardless.com' : 'gocardless.com') . '/';
-    $uri .= $command;
+    $uri = $uri . $command;
 
-    my $req = HTTP::Request->new($method, $command, $h, $data);
+    my $req = HTTP::Request->new($method, $uri, $h, $data);
 
     my $res = $ua->request($req);
     warn Dumper $res if $self->testing;
@@ -51,7 +51,8 @@ sub _connect {
     $command = 'connect/'.$command.'s/new';
     $data->{signature} = $self->sign($data);
 
-    return $self->_go("POST", $command, to_json($data));
+    my $answer = $self->_go("POST", $command, to_json($data));
+    return from_json($answer);
 }
 
 sub sign {
@@ -68,12 +69,17 @@ sub _api {
     my ($self, $command, $data) = @_;
 
     my $method = "GET";
-    $method = "POST" if $command eq "bill";
-
-    $comand = 'api/v1/'.$command.'s/'.$data->{id};
-    $command .= '/'.$data->{subcommand} if $data->{subcommand};
+    if ( $command eq 'new_bill' ) {
+        $method = "POST";
+        $command = 'api/v1/bills';
+    }
+    else {
+        $command = 'api/v1/'.$command.'s/'.$data->{id};
+        $command .= '/'.$data->{subcommand} if $data->{subcommand};
+    }
     
-    return $self->_go($method, $command, to_json($data));
+    my $answer = $self->_go($method, $command, to_json($data));
+    return from_json($answer);
 }
 
 sub new_subscription {
