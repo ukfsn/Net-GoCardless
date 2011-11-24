@@ -90,18 +90,12 @@ sub _api {
     return from_json($answer);
 }
 
-sub new_subscription {
-    my ($self, $data) = @_;
-    for (qw/merchant_id amount interval_length interval_unit/) {
-        croak "You must supply the $_ parameter" unless $data->{$_};
-    }
-
-    return $self->_connect("subscription", $data);
-}
-
 sub merchant {
     my ($self, $data) = @_;
-    return $self->_api("merchant", $data);
+    my $m = $self->_api("merchant", $data);
+    my $merchant = bless $m, "Net::Gocardless::Merchant";
+    $merchant->{go} = $self;
+    return $merchant;
 }
 
 sub merchant_users {
@@ -112,12 +106,129 @@ sub merchant_users {
 
 sub get_bill {
     my ($self, $data) = @_;
-    return $self->_api("bill", $data);
+    my $b = $self->_api("bill", $data);
+    my $bill = bless $b, "Net::Gocardless::Bill";
+    return $bill;
 }
 
 sub payment {
     my ($self, $data) = @_;
     return $self->_api("payment", $data);
+}
+
+sub _bills {
+    my ($self, $bills) = @_;
+    my @b = ();
+    if ( ref @$bills eq 'ARRAY' ) {
+        for my $b (pop @$bills) {
+            my $bill = bless $b, "Net::Gocardless::Bill";
+            push @b, $bill;
+        }
+    }
+    else {
+        my $bill = bless $bills, "Net::Gocardless::Bill";
+        push @b, $bill;
+    }
+    return @b;
+}
+
+package Net::GoCardless::Base;
+use base 'Class::Accessor';
+
+
+package Net::GoCardless::Merchant;
+use base 'Net::GoCardless::Base';
+__PACKAGE__->mk_accessors(qw/
+name next_payout_amount description uri last_name email next_payout_date
+created_at balance id first_name sub_resource_uris
+/);
+sub _this { "merchant" }
+
+sub pre_authorizations {
+    my ($self, $filter) = @_;
+
+}
+
+sub payments {
+    my ($self, $filter) = @_;
+
+}
+
+sub users {
+    my $self = shift;
+
+}
+
+sub subscriptions {
+    my ($self, $filter) = @_;
+
+}
+
+sub bills {
+    my ($self, $filter) = @_;
+
+}
+
+package Net::GoCardless::User;
+use base 'Net::GoCardless::Base';
+__PACKAGE__->mk_accessors(qw/
+id amount interval_length interval_unit created_at currency description
+name expires_at merchant_id setup_fee status trial_length trial_unit uri
+user_id sub_resource_uris
+/);
+sub _this { "user" }
+
+sub bills {
+    my ($self, $filter) = @_;
+    my $data = {
+        id => $self->id,
+        subcommand => "bills"
+    };
+    $data->{filter} = $filter if $filter;
+    my $bills = $self->{go}->_api("user", $data);
+    return $self->{go}->_bills($bills);
+}
+
+package Net::GoCardless::Bill;
+use base 'Net::GoCardless::Base';
+__PACKAGE__->mk_accessors(qw/
+id amount currency created_at description name payment_id paid_at status
+merchant_id user_id source_type source_id uri
+/);
+sub _this { "bill" }
+
+
+package Net::GoCardless::Subscription;
+use base 'Net::GoCardless::Base';
+__PACKAGE__->mk_accessors(qw/
+id amount interval_length interval_unit created_at currency name uri
+description expires_at merchant_id setup_fee status trial_length user_id
+sub_resource_uris
+/);
+sub _this { "subscription" }
+
+sub bills {
+    my ($self, $filter) = @_;
+
+}
+
+package Net::GoCardless::PreAuthorization;
+use base 'Net::GoCardless::Base';
+__PACKAGE__->mk_accessors(qw/
+id created_at currency name description expires_at interval_length status
+interval_unit merchant_id user_id max_amount uri sub_resource_uris
+/);
+sub _this { "pre_authorization" }
+
+sub bills {
+    my ($self, $filter) = @_;
+    
+
+}
+
+sub new_bill {
+    my ($self, $data) = @_;
+
 }
 
 1;
