@@ -76,6 +76,14 @@ sub _api {
     else {
         $command = 'api/v1/'.$command.'s/'.$data->{id};
         $command .= '/'.$data->{subcommand} if $data->{subcommand};
+        if ( $data->{filter} ) {
+            $command .= '?';
+            foreach (keys %{$data->{filter}}) {
+                $command .= $_.'='.$data->{filter}->{$_}.'&';
+
+            }
+            chop $command; # Remove the extra & character
+        }
     }
     
     my $answer = $self->_go($method, $command, to_json($data));
