@@ -18,7 +18,7 @@ use base 'Class::Accessor';
 __PACKAGE__->mk_accessors(qw/client_id access_token secret testing timeout/);
 
 sub _go {
-    my ($self, $method, $data) = @_;
+    my ($self, $method, $command, $data) = @_;
 
     my $ua = LWP::UserAgent->new();
     $ua->timeout(($self->timeout ? $self->timeout : 15));
@@ -29,9 +29,9 @@ sub _go {
     $h->header('accept' => 'application/json');
     
     my $uri = 'https://' . ($self->testing ? 'sandbox.gocardless.com' : 'gocardless.com') . '/';
-    $uri .= $method;
+    $uri .= $command;
 
-    my $req = HTTP::Request->new('POST', $uri, $h, $data);
+    my $req = HTTP::Request->new($method, $command, $h, $data);
 
     my $res = $ua->request($req);
     warn Dumper $res if $self->testing;
@@ -42,16 +42,16 @@ sub _go {
 
 sub _connect {
     # Handles new subscription, pre-authorisation and bill setups
-    my ($self, $method, $data) = @_;
+    my ($self, $command, $data) = @_;
 
     $data->{client_id} = $self->client_id;
     $data->{timestamp} = Time::Piece->new()->datetime;
     $data->{nonce} = hmac_sha256_base64($$ . $data->{timestamp}, "Net::GoCardless Perl Module");
 
-    $method = 'connect/'.$method.'s/new';
+    $command = 'connect/'.$command.'s/new';
     $data->{signature} = $self->sign($data);
 
-    return $self->_go($method, to_json($data));
+    return $self->_go("POST", $command, to_json($data));
 }
 
 sub sign {
@@ -65,12 +65,15 @@ sub sign {
 
 sub _api {
     # Handles API calls for existing subscriptions, pre-auths and bills
-    my ($self, $method, $data) = @_;
+    my ($self, $command, $data) = @_;
 
-    $method = 'api/v1/'.$method.'s/'.$data->{id};
-    $method .= '/'.$data->{subcommand} if $data->{subcommand};
+    my $method = "GET";
+    $method = "POST" if $command eq "bill";
+
+    $comand = 'api/v1/'.$command.'s/'.$data->{id};
+    $command .= '/'.$data->{subcommand} if $data->{subcommand};
     
-    return $self->_go($method, to_json($data));
+    return $self->_go($method, $command, to_json($data));
 }
 
 sub new_subscription {
