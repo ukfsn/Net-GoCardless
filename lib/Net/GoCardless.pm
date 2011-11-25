@@ -105,6 +105,13 @@ sub user {
     return $user;
 }
 
+sub users {
+    my ($self, $data) = @_;
+    $data->{subcommand} = 'users';
+    my $users = $self->merchant($data);
+    return $self->_things($users, 'User');
+}
+
 sub subscription {
     my ($self, $data) = @_;
     my $s = $self->_api("subscription", $data);
@@ -121,12 +128,6 @@ sub pre_authorization {
     return $pre;
 }
 
-sub merchant_users {
-    my ($self, $data) = @_;
-    $data->{subcommand} = 'users';
-    $self->merchant($data);
-}
-
 sub get_bill {
     my ($self, $data) = @_;
     my $b = $self->_api("bill", $data);
@@ -138,45 +139,27 @@ sub get_bill {
 sub payment {
     my ($self, $data) = @_;
     my $p = $self->_api("payment", $data);
-    $payment = bless $p, "Net::GoCardless::Payment";
+    my $payment = bless $p, "Net::GoCardless::Payment";
     $payment->{go} = $self;
     return $payment;
 }
 
-sub _bills {
-    my ($self, $bills) = @_;
-    my @b = ();
-    if ( ref $bills eq 'ARRAY' ) {
-        for my $b (pop @$bills) {
-            my $bill = bless $b, "Net::Gocardless::Bill";
-            $bill->{go} = $self;
-            push @b, $bill;
+sub _things {
+    my ($self, $things, $type) = @_;
+    my @t = ();
+    if (ref $things eq 'ARRAY' ) {
+        for my $t (pop @$things) {
+            my $thing = bless $t, "Net::GoCardless::".$type;
+            $thing->{go} = $self;
+            push @t, $thing;
         }
     }
     else {
-        my $bill = bless $bills, "Net::Gocardless::Bill";
-        $bill->{go} = $self;
-        push @b, $bill;
+        my $thing = bless $things, "Net::GoCardless::".$type;
+        $thing->{go} = $self;
+        push @t, $thing;
     }
-    return @b;
-}
-
-sub _users {
-    my ($self, $users) = @_;
-    my @u = ();
-    if ( ref $users eq 'ARRAY' ) {
-        for my $u (pop @$users) {
-            my $user = bless $u, "Net::GoCardless::User";
-            $user->{go} = $self;
-            push @u, $user;
-        }
-    }
-    else {
-        my $user = bless $u, "Net::GoCardless::User";
-        $user->{go} = $self;
-        push @u, $user;
-    }
-    return @u;
+    return @t;
 }
 
 package Net::GoCardless::Base;
@@ -193,27 +176,35 @@ sub _this { "merchant" }
 
 sub pre_authorizations {
     my ($self, $filter) = @_;
-
+    return $self->_stuff($filter, 'PreAuthorization');
 }
 
 sub payments {
     my ($self, $filter) = @_;
-
+    return $self->_stuff($filter, 'Payment');
 }
 
 sub users {
     my $self = shift;
-
+    return $self->_stuff(undef, 'User');
 }
 
 sub subscriptions {
     my ($self, $filter) = @_;
-
+    return $self->_stuff($filter, 'Subscription');
 }
 
 sub bills {
     my ($self, $filter) = @_;
+    return $self->_stuff($filter, 'Bill');
+}
 
+sub _stuff {
+    my ($self, $filter, $what) = @_;
+    my $data = {id => $self->id, subcommand => lc $what.'s'};
+    $data->{filter} = $filter if $filter;
+    my $stuff = $self->{go}->_api('merchant', $data);
+    return $self->{go}->_things($stuff, $what);
 }
 
 package Net::GoCardless::User;
@@ -227,13 +218,10 @@ sub _this { "user" }
 
 sub bills {
     my ($self, $filter) = @_;
-    my $data = {
-        id => $self->id,
-        subcommand => "bills"
-    };
+    my $data = {id => $self->id, subcommand => "bills"};
     $data->{filter} = $filter if $filter;
     my $bills = $self->{go}->_api("user", $data);
-    return $self->{go}->_bills($bills);
+    return $self->{go}->_things($bills, 'Bill');
 }
 
 package Net::GoCardless::Bill;
