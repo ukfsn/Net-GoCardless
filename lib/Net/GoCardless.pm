@@ -97,6 +97,30 @@ sub merchant {
     return $merchant;
 }
 
+sub user {
+    my ($self, $data) = @_;
+    my $u = $self->_api("user", $data);
+    my $user = bless $u, "Net::GoCardless::User";
+    $user->{go} = $self;
+    return $user;
+}
+
+sub subscription {
+    my ($self, $data) = @_;
+    my $s = $self->_api("subscription", $data);
+    my $sub = bless $s, "Net::GoCardless::Subscription";
+    $sub->{go} = $self;
+    return $sub;
+}
+
+sub pre_authorization {
+    my ($self, $data) = @_;
+    my $p = $self->_api("pre_authorization", $data);
+    my $pre = bless $p, "Net::GoCardless::PreAuthorization";
+    $pre->{go} = $self;
+    return $pre;
+}
+
 sub merchant_users {
     my ($self, $data) = @_;
     $data->{subcommand} = 'users';
