@@ -3,7 +3,6 @@ package Net::GoCardless;
 use strict;
 use warnings;
 our $VERSION = '0.01';
-use 5.010001;
 
 use LWP::UserAgent;
 use HTTP::Request;
