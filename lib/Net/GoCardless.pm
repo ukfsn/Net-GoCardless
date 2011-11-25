@@ -146,7 +146,7 @@ sub payment {
 sub _bills {
     my ($self, $bills) = @_;
     my @b = ();
-    if ( ref @$bills eq 'ARRAY' ) {
+    if ( ref $bills eq 'ARRAY' ) {
         for my $b (pop @$bills) {
             my $bill = bless $b, "Net::Gocardless::Bill";
             $bill->{go} = $self;
@@ -159,6 +159,24 @@ sub _bills {
         push @b, $bill;
     }
     return @b;
+}
+
+sub _users {
+    my ($self, $users) = @_;
+    my @u = ();
+    if ( ref $users eq 'ARRAY' ) {
+        for my $u (pop @$users) {
+            my $user = bless $u, "Net::GoCardless::User";
+            $user->{go} = $self;
+            push @u, $user;
+        }
+    }
+    else {
+        my $user = bless $u, "Net::GoCardless::User";
+        $user->{go} = $self;
+        push @u, $user;
+    }
+    return @u;
 }
 
 package Net::GoCardless::Base;
