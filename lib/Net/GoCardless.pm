@@ -107,12 +107,16 @@ sub get_bill {
     my ($self, $data) = @_;
     my $b = $self->_api("bill", $data);
     my $bill = bless $b, "Net::Gocardless::Bill";
+    $bill->{go} = $self;
     return $bill;
 }
 
 sub payment {
     my ($self, $data) = @_;
-    return $self->_api("payment", $data);
+    my $p = $self->_api("payment", $data);
+    $payment = bless $p, "Net::GoCardless::Payment";
+    $payment->{go} = $self;
+    return $payment;
 }
 
 sub _bills {
@@ -121,11 +125,13 @@ sub _bills {
     if ( ref @$bills eq 'ARRAY' ) {
         for my $b (pop @$bills) {
             my $bill = bless $b, "Net::Gocardless::Bill";
+            $bill->{go} = $self;
             push @b, $bill;
         }
     }
     else {
         my $bill = bless $bills, "Net::Gocardless::Bill";
+        $bill->{go} = $self;
         push @b, $bill;
     }
     return @b;
