@@ -244,7 +244,10 @@ sub _this { "subscription" }
 
 sub bills {
     my ($self, $filter) = @_;
-
+    my $data = {id => $self->id, subcommand => "bills"};
+    $data->{filter} = $filter if $filter;
+    my $bills = $self->{go}->_api("subscription", $data);
+    return $self->{go}->_things($bills, 'Bill');
 }
 
 package Net::GoCardless::PreAuthorization;
@@ -257,13 +260,20 @@ sub _this { "pre_authorization" }
 
 sub bills {
     my ($self, $filter) = @_;
-    
-
+    my $data = {id => $self->id, subcommand => "bills"};
+    $data->{filter} = $filter if $filter;
+    my $bills = $self->{go}->_api("pre_authorization", $data);
+    return $self->{go}->_things($bills, 'Bill');
 }
 
 sub new_bill {
     my ($self, $data) = @_;
-
+    croak "You must supply the amount" unless $data->{amount};
+    $data->{"pre_authorization_id"} = $self->id;
+    my $bill = $self->{go}->_api("new_bill", $data);
+    my $b = bless $bill, "Net::GoCardless::Bill";
+    $b->{go} = $self->{go};
+    return $b;
 }
 
 1;
